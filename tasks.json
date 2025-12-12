@@ -1,0 +1,8 @@
+[
+    {
+        "id": "open-app",
+        "name": "Open FX Dashboard",
+        "command": "python -m http.server 8000",
+        "cwd": "c:\\Users\\hibah\\OneDrive\\Desktop\\Hedging"
+    }
+]

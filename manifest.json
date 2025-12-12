@@ -1,0 +1,15 @@
+{
+    "name": "FX Monitor",
+    "short_name": "FX Monitor",
+    "start_url": "index.html",
+    "display": "standalone",
+    "background_color": "#0a0e17",
+    "theme_color": "#0a0e17",
+    "icons": [
+        {
+            "src": "https://cdn-icons-png.flaticon.com/512/2910/2910321.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

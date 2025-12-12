@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FX Position Monitor</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Mobile App Meta -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FX Monitor">
+    <meta name="theme-color" content="#0a0e17">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2910/2910321.png">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="header">
+            <div>
+                <h1>FX Position Monitor</h1>
+                <div id="formatted-date"
+                    style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.25rem;"></div>
+            </div>
+            <div class="status-badge">
+                <div class="status-indicator"></div>
+                LIVE MARKET
+            </div>
+        </header>
+
+        <!-- Total P/L -->
+        <section class="total-card">
+            <div class="total-label">Net Projected Profit/Loss (USD)</div>
+            <div id="total-pl" class="total-value">Loading...</div>
+        </section>
+
+        <!-- USDAED Card -->
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2 class="card-title">USDAED</h2>
+                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 4px;">Buying USD 10M</div>
+                </div>
+                <div class="card-type">Long USD</div>
+            </div>
+            <div class="card-row">
+                <span class="row-label">Fixed Rate</span>
+                <span class="row-value">3.6720</span>
+            </div>
+            <div class="card-row">
+                <span class="row-label">Market Rate</span>
+                <span id="usdaed-rate" class="row-value live-rate">...</span>
+            </div>
+            <hr style="border: 0; border-top: 1px solid var(--glass-border); margin: 1rem 0;">
+            <div class="card-row">
+                <span class="row-label">P/L (USD)</span>
+                <span id="usdaed-pl" class="position-value">...</span>
+            </div>
+        </div>
+
+        <!-- USDSAR Card -->
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2 class="card-title">USDSAR</h2>
+                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 4px;">Selling USD 10M</div>
+                </div>
+                <div class="card-type">Short USD</div>
+            </div>
+            <div class="card-row">
+                <span class="row-label">Fixed Rate</span>
+                <span class="row-value">3.7560</span>
+            </div>
+            <div class="card-row">
+                <span class="row-label">Market Rate</span>
+                <span id="usdsar-rate" class="row-value live-rate">...</span>
+            </div>
+            <hr style="border: 0; border-top: 1px solid var(--glass-border); margin: 1rem 0;">
+            <div class="card-row">
+                <span class="row-label">P/L (USD)</span>
+                <span id="usdsar-pl" class="position-value">...</span>
+            </div>
+        </div>
+
+        <!-- Performance / History Card -->
+        <div class="card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+                <div>
+                    <h2 class="card-title">Performance Report</h2>
+                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 4px;">Historical Analysis
+                    </div>
+                </div>
+                <div class="card-type">Monthly</div>
+            </div>
+
+            <div class="dashboard-container"
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 0; padding: 0;">
+                <!-- Yesterday -->
+                <div>
+                    <span class="row-label">Yesterday's Close</span>
+                    <div class="row-value" style="font-size: 1.5rem; margin-top: 0.5rem;">
+                        <span id="yesterday-pl">Loading...</span>
+                    </div>
+                </div>
+
+                <!-- Monthly Comp -->
+                <div>
+                    <span class="row-label">Vs Last Month</span>
+                    <div class="row-value"
+                        style="font-size: 1.5rem; margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <span id="month-comp">Loading...</span>
+                        <span id="month-arrow" style="font-size: 1rem;"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+                <div>
+                    <h2 class="card-title">Data Source</h2>
+                    <div style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 4px;">Real-Time
+                        Configuration</div>
+                </div>
+            </div>
+
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                Get a free API Key from <a href="https://twelvedata.com" target="_blank"
+                    style="color: var(--accent-primary);">Twelve Data</a> to enable live updates. without it, data
+                updates daily.
+            </p>
+
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                <input type="text" id="api-key-input" placeholder="Paste API Key here..."
+                    style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: #fff; padding: 0.75rem; border-radius: 8px; font-family: var(--font-mono);">
+                <button id="save-key-btn"
+                    style="background: var(--accent-primary); color: #fff; border: none; padding: 0 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer;">Activate</button>
+            </div>
+
+            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="allow-simulation"
+                    style="width: 1.2rem; height: 1.2rem; accent-color: var(--accent-primary);">
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-weight: 600; font-size: 0.9rem;">Simulate Volatility</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary);">Add micro-movements to charts
+                        (Recommended for Daily Data)</span>
+                </div>
+            </label>
+        </div>
+
+        <!-- Graph -->
+        <div class="chart-container">
+            <h3 class="chart-title">Real-time P/L Performance (Last 60s)</h3>
+            <canvas id="plChart"></canvas>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

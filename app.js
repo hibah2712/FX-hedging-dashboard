@@ -15,7 +15,11 @@ const DEFAULT_API = "https://open.er-api.com/v6/latest/USD";
 // Last known good rates
 let lastKnownRates = { usdaed: 3.6725, usdsar: 3.7500 };
 let lastFetchTime = 0;
+let lastHistoricalFetch = 0;
+let lastHistoricalSnapshot = null;
+let historicalInFlight = false;
 const FETCH_INTERVAL = 60000;
+const HISTORICAL_INTERVAL = 15 * 60 * 1000;
 const maxDataPoints = 60;
 
 // ===============================
@@ -23,16 +27,27 @@ const maxDataPoints = 60;
 // ===============================
 const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0, signDisplay: 'always' }).format(val);
 const formatRate = (val) => val.toFixed(4);
+const getApiKey = () => {
+    let apiKey = localStorage.getItem('finage_key') || localStorage.getItem('twelve_data_key');
+    const inputVal = document.getElementById('api-key-input')?.value?.trim();
+    if (inputVal) apiKey = inputVal;
+    return apiKey;
+};
+const calculatePL = (rates) => {
+    const plAED = ((rates.usdaed - CONFIG.usdaed.fixedRate) * CONFIG.usdaed.amount) / rates.usdaed;
+    const plSAR = ((CONFIG.usdsar.fixedRate - rates.usdsar) * CONFIG.usdsar.amount) / rates.usdsar;
+    return { plAED, plSAR, total: plAED + plSAR };
+};
+const applyValueState = (el, value, baseClass = 'position-value') => {
+    if (!el) return;
+    el.innerText = formatCurrency(value);
+    el.className = `${baseClass} ${value >= 0 ? 'positive' : 'negative'}`;
+};
 
 // ===============================
 // FETCHING
 // ===============================
-async function getRates() {
-    // Check if input exists (might not be in DOM yet)
-    let apiKey = localStorage.getItem('finage_key') || localStorage.getItem('twelve_data_key');
-    const inputVal = document.getElementById('api-key-input')?.value;
-    if (inputVal) apiKey = inputVal;
-
+async function getRates(apiKey) {
     const now = Date.now();
 
     // Cache check (1 minute)
@@ -92,11 +107,118 @@ async function getRates() {
     }
 }
 
+async function fetchHistoricalData(apiKey) {
+    if (!apiKey) throw new Error("API key required for historical data");
+    const url = `https://api.twelvedata.com/time_series?symbol=USD/AED,USD/SAR&interval=1day&outputsize=45&apikey=${apiKey}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.code && data.code !== 200) throw new Error(data.message || "Historical API error");
+
+    const takeSeries = (symbol) => {
+        const section = data[symbol];
+        if (!section || section.status !== "ok" || !Array.isArray(section.values) || !section.values.length) {
+            throw new Error(`Missing history for ${symbol}`);
+        }
+        return section.values;
+    };
+
+    return { aed: takeSeries("USD/AED"), sar: takeSeries("USD/SAR") };
+}
+
+function buildHistoricalSnapshot(series) {
+    const pickClose = (arr, idx) => parseFloat(arr[Math.min(idx, arr.length - 1)].close);
+    const monthIndex = Math.min(21, series.aed.length - 1, series.sar.length - 1);
+    const yesterdayIndex = Math.min(1, series.aed.length - 1, series.sar.length - 1);
+
+    const yesterdayRates = {
+        usdaed: pickClose(series.aed, yesterdayIndex),
+        usdsar: pickClose(series.sar, yesterdayIndex)
+    };
+    const monthRates = {
+        usdaed: pickClose(series.aed, monthIndex),
+        usdsar: pickClose(series.sar, monthIndex)
+    };
+
+    return { yesterdayPL: calculatePL(yesterdayRates), monthPL: calculatePL(monthRates) };
+}
+
+function renderHistorical(snapshot) {
+    const yEl = document.getElementById('yesterday-pl');
+    const mEl = document.getElementById('month-comp');
+    const arrowEl = document.getElementById('month-arrow');
+
+    if (!snapshot) return;
+    applyValueState(yEl, snapshot.yesterdayPL.total, 'position-value');
+
+    const delta = snapshot.yesterdayPL.total - snapshot.monthPL.total;
+    applyValueState(mEl, delta, 'position-value');
+    if (arrowEl) {
+        arrowEl.innerText = delta >= 0 ? '^' : 'v';
+        arrowEl.style.color = delta >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)';
+    }
+}
+
+async function updateHistoricalSection(apiKey) {
+    const yEl = document.getElementById('yesterday-pl');
+    const mEl = document.getElementById('month-comp');
+    const arrowEl = document.getElementById('month-arrow');
+
+    if (!apiKey) {
+        if (yEl) {
+            yEl.innerText = 'Add an API key for history';
+            yEl.className = 'row-value';
+        }
+        if (mEl) {
+            mEl.innerText = 'N/A';
+            mEl.className = 'row-value';
+        }
+        if (arrowEl) {
+            arrowEl.innerText = '';
+            arrowEl.style.color = '';
+        }
+        lastHistoricalSnapshot = null;
+        return;
+    }
+
+    const now = Date.now();
+    if (lastHistoricalSnapshot && now - lastHistoricalFetch < HISTORICAL_INTERVAL) {
+        renderHistorical(lastHistoricalSnapshot);
+        return;
+    }
+    if (historicalInFlight) return;
+
+    try {
+        historicalInFlight = true;
+        const series = await fetchHistoricalData(apiKey);
+        lastHistoricalSnapshot = buildHistoricalSnapshot(series);
+        lastHistoricalFetch = now;
+        renderHistorical(lastHistoricalSnapshot);
+    } catch (err) {
+        console.warn("Historical Fetch Error:", err);
+        if (yEl) {
+            yEl.innerText = 'History unavailable';
+            yEl.className = 'row-value';
+        }
+        if (mEl) {
+            mEl.innerText = 'History unavailable';
+            mEl.className = 'row-value';
+        }
+        if (arrowEl) {
+            arrowEl.innerText = '';
+            arrowEl.style.color = '';
+        }
+        lastHistoricalFetch = now;
+    } finally {
+        historicalInFlight = false;
+    }
+}
+
 // ===============================
 // MAIN LOOP
 // ===============================
 async function updateDashboard() {
-    const baseRates = await getRates();
+    const apiKey = getApiKey();
+    const baseRates = await getRates(apiKey);
 
     // Noise Logic
     const simEnabled = document.getElementById('allow-simulation')?.checked;
@@ -110,9 +232,7 @@ async function updateDashboard() {
     }
 
     // P/L Calc
-    const plAED = ((currentUSDAED - CONFIG.usdaed.fixedRate) * CONFIG.usdaed.amount) / currentUSDAED;
-    const plSAR = ((CONFIG.usdsar.fixedRate - currentUSDSAR) * CONFIG.usdsar.amount) / currentUSDSAR;
-    const total = plAED + plSAR;
+    const { plAED, plSAR, total } = calculatePL({ usdaed: currentUSDAED, usdsar: currentUSDSAR });
 
     // UI Updates
     document.getElementById('usdaed-rate').innerText = formatRate(currentUSDAED);
@@ -137,6 +257,7 @@ async function updateDashboard() {
 
     // Chart
     updateChart(total);
+    updateHistoricalSection(apiKey);
 }
 
 function updateChart(val) {
@@ -181,6 +302,8 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('twelve_data_key', key);
             alert("Key Saved! Connecting..."); // Generic message
             lastFetchTime = 0; // Reset cache
+            lastHistoricalFetch = 0;
+            lastHistoricalSnapshot = null;
             updateDashboard();
         }
     });

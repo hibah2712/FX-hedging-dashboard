@@ -372,6 +372,7 @@ function setupManualControls() {
         lastKnownRates = manualRates;
         setStatus();
         updateDashboard();
+        alert(`Manual mode ON. USDAED: ${finalAED.toFixed(4)}, USDSAR: ${finalSAR.toFixed(4)}`);
     });
 
     disableBtn?.addEventListener('click', () => {
@@ -381,6 +382,7 @@ function setupManualControls() {
         lastKnownRates = { usdaed: 3.6725, usdsar: 3.7500 };
         setStatus();
         updateDashboard();
+        alert('Manual mode OFF. Live data resumed.');
     });
 
     setStatus();

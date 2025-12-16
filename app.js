@@ -52,7 +52,10 @@ const applyValueState = (el, value, baseClass = 'position-value') => {
 // FETCHING
 // ===============================
 async function getRates(apiKey) {
-    if (manualMode && manualRates) return manualRates;
+    if (manualMode && manualRates) {
+        lastKnownRates = manualRates;
+        return manualRates;
+    }
 
     const now = Date.now();
     let interval = apiKey ? KEYED_FETCH_INTERVAL : FALLBACK_FETCH_INTERVAL;
@@ -279,7 +282,7 @@ async function updateDashboard() {
 
     // Chart
     updateChart(total);
-    updateHistoricalSection(apiKey);
+    if (!manualMode) updateHistoricalSection(apiKey);
 }
 
 function updateChart(val) {
@@ -353,8 +356,9 @@ function setupManualControls() {
         if (Number.isFinite(aed) && Number.isFinite(sar)) {
             manualRates = { usdaed: aed, usdsar: sar };
             manualMode = true;
-            lastFetchTime = 0;
+            lastFetchTime = Date.now();
             realtimeFetchCount = 0;
+            lastKnownRates = manualRates;
             setStatus();
             updateDashboard();
         } else {
@@ -366,6 +370,7 @@ function setupManualControls() {
         manualMode = false;
         manualRates = null;
         lastFetchTime = 0;
+        lastKnownRates = { usdaed: 3.6725, usdsar: 3.7500 };
         setStatus();
         updateDashboard();
     });

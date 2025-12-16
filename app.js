@@ -18,7 +18,9 @@ let lastFetchTime = 0;
 let lastHistoricalFetch = 0;
 let lastHistoricalSnapshot = null;
 let historicalInFlight = false;
-const FETCH_INTERVAL = 60000;
+let realtimeFetchCount = 0;
+const KEYED_FETCH_INTERVAL = 10000; // ~6 per minute, stays under typical free limits for a couple hours
+const FALLBACK_FETCH_INTERVAL = 60000;
 const HISTORICAL_INTERVAL = 15 * 60 * 1000;
 const maxDataPoints = 60;
 
@@ -49,9 +51,17 @@ const applyValueState = (el, value, baseClass = 'position-value') => {
 // ===============================
 async function getRates(apiKey) {
     const now = Date.now();
+    let interval = apiKey ? KEYED_FETCH_INTERVAL : FALLBACK_FETCH_INTERVAL;
+
+    // Soft cap to avoid blowing through ~600 requests (falls back to daily source after cap)
+    if (apiKey && realtimeFetchCount >= 600) {
+        console.warn("Realtime fetch cap reached; switching to fallback source until reload.");
+        apiKey = null;
+        interval = FALLBACK_FETCH_INTERVAL;
+    }
 
     // Cache check (1 minute)
-    if (now - lastFetchTime < FETCH_INTERVAL && lastKnownRates.usdaed !== 3.6725) {
+    if (now - lastFetchTime < interval && lastKnownRates.usdaed !== 3.6725) {
         return lastKnownRates;
     }
 
@@ -83,6 +93,7 @@ async function getRates(apiKey) {
                     usdaed: parseFloat(data["USD/AED"].price),
                     usdsar: parseFloat(data["USD/SAR"].price)
                 };
+                realtimeFetchCount += 1;
             } else {
                 throw new Error("Most likely Invalid Key or Limit Reached");
             }
@@ -302,6 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('twelve_data_key', key);
             alert("Key Saved! Connecting..."); // Generic message
             lastFetchTime = 0; // Reset cache
+            realtimeFetchCount = 0;
             lastHistoricalFetch = 0;
             lastHistoricalSnapshot = null;
             updateDashboard();

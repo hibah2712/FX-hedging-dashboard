@@ -351,19 +351,27 @@ function setupManualControls() {
     };
 
     applyBtn?.addEventListener('click', () => {
-        const aed = parseFloat(document.getElementById('manual-usdaed')?.value);
-        const sar = parseFloat(document.getElementById('manual-usdsar')?.value);
-        if (Number.isFinite(aed) && Number.isFinite(sar)) {
-            manualRates = { usdaed: aed, usdsar: sar };
-            manualMode = true;
-            lastFetchTime = Date.now();
-            realtimeFetchCount = 0;
-            lastKnownRates = manualRates;
-            setStatus();
-            updateDashboard();
-        } else {
-            alert('Enter valid numeric rates for both pairs.');
+        const aedInput = document.getElementById('manual-usdaed')?.value;
+        const sarInput = document.getElementById('manual-usdsar')?.value;
+        const aed = parseFloat(aedInput);
+        const sar = parseFloat(sarInput);
+
+        const base = lastKnownRates || { usdaed: CONFIG.usdaed.fixedRate, usdsar: CONFIG.usdsar.fixedRate };
+        const finalAED = Number.isFinite(aed) ? aed : base.usdaed;
+        const finalSAR = Number.isFinite(sar) ? sar : base.usdsar;
+
+        if (!Number.isFinite(finalAED) || !Number.isFinite(finalSAR)) {
+            alert('Enter at least one numeric rate (USDAED or USDSAR).');
+            return;
         }
+
+        manualRates = { usdaed: finalAED, usdsar: finalSAR };
+        manualMode = true;
+        lastFetchTime = Date.now();
+        realtimeFetchCount = 0;
+        lastKnownRates = manualRates;
+        setStatus();
+        updateDashboard();
     });
 
     disableBtn?.addEventListener('click', () => {

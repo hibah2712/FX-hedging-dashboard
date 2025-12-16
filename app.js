@@ -245,6 +245,13 @@ async function updateDashboard() {
     // P/L Calc
     const { plAED, plSAR, total } = calculatePL({ usdaed: currentUSDAED, usdsar: currentUSDSAR });
 
+    // Last updated label
+    const lastUpdatedEl = document.getElementById('last-updated');
+    if (lastUpdatedEl) {
+        const sourceLabel = apiKey ? 'Real-time' : 'Daily fallback';
+        lastUpdatedEl.innerText = `Last update: ${new Date().toLocaleTimeString()} (${sourceLabel})`;
+    }
+
     // UI Updates
     document.getElementById('usdaed-rate').innerText = formatRate(currentUSDAED);
     document.getElementById('usdsar-rate').innerText = formatRate(currentUSDSAR);

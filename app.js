@@ -19,6 +19,8 @@ let lastHistoricalFetch = 0;
 let lastHistoricalSnapshot = null;
 let historicalInFlight = false;
 let realtimeFetchCount = 0;
+let manualMode = false;
+let manualRates = null;
 const KEYED_FETCH_INTERVAL = 10000; // ~6 per minute, stays under typical free limits for a couple hours
 const FALLBACK_FETCH_INTERVAL = 60000;
 const HISTORICAL_INTERVAL = 15 * 60 * 1000;
@@ -50,6 +52,8 @@ const applyValueState = (el, value, baseClass = 'position-value') => {
 // FETCHING
 // ===============================
 async function getRates(apiKey) {
+    if (manualMode && manualRates) return manualRates;
+
     const now = Date.now();
     let interval = apiKey ? KEYED_FETCH_INTERVAL : FALLBACK_FETCH_INTERVAL;
 
@@ -248,7 +252,7 @@ async function updateDashboard() {
     // Last updated label
     const lastUpdatedEl = document.getElementById('last-updated');
     if (lastUpdatedEl) {
-        const sourceLabel = apiKey ? 'Real-time' : 'Daily fallback';
+        const sourceLabel = manualMode ? 'Manual input' : (apiKey ? 'Real-time' : 'Daily fallback');
         lastUpdatedEl.innerText = `Last update: ${new Date().toLocaleTimeString()} (${sourceLabel})`;
     }
 
@@ -330,7 +334,44 @@ document.addEventListener('DOMContentLoaded', () => {
     initChart();
     updateDashboard();
     setInterval(updateDashboard, 1000);
+    setupManualControls();
 });
+
+// Manual mode wiring
+function setupManualControls() {
+    const applyBtn = document.getElementById('apply-manual-btn');
+    const disableBtn = document.getElementById('disable-manual-btn');
+    const statusEl = document.getElementById('manual-status');
+
+    const setStatus = () => {
+        if (statusEl) statusEl.innerText = manualMode ? 'Manual on' : 'Manual off';
+    };
+
+    applyBtn?.addEventListener('click', () => {
+        const aed = parseFloat(document.getElementById('manual-usdaed')?.value);
+        const sar = parseFloat(document.getElementById('manual-usdsar')?.value);
+        if (Number.isFinite(aed) && Number.isFinite(sar)) {
+            manualRates = { usdaed: aed, usdsar: sar };
+            manualMode = true;
+            lastFetchTime = 0;
+            realtimeFetchCount = 0;
+            setStatus();
+            updateDashboard();
+        } else {
+            alert('Enter valid numeric rates for both pairs.');
+        }
+    });
+
+    disableBtn?.addEventListener('click', () => {
+        manualMode = false;
+        manualRates = null;
+        lastFetchTime = 0;
+        setStatus();
+        updateDashboard();
+    });
+
+    setStatus();
+}
 
 // Chart Init (Same as before)
 function initChart() {
